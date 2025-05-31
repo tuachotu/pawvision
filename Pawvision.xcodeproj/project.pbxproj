@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		C81D295E2DEBA84200193F82 /* Readme.md in Resources */ = {isa = PBXBuildFile; fileRef = C81D295D2DEBA83300193F82 /* Readme.md */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		C875C8422DE251AB000E7AC9 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -24,14 +28,28 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		C81D295D2DEBA83300193F82 /* Readme.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = Readme.md; sourceTree = "<group>"; };
 		C875C8342DE251A9000E7AC9 /* Pawvision.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Pawvision.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C875C8412DE251AB000E7AC9 /* PawvisionTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PawvisionTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C875C84B2DE251AB000E7AC9 /* PawvisionUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PawvisionUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		C81D29542DE25F5E00193F82 /* Exceptions for "Pawvision" folder in "Pawvision" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = C875C8332DE251A9000E7AC9 /* Pawvision */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		C875C8362DE251A9000E7AC9 /* Pawvision */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				C81D29542DE25F5E00193F82 /* Exceptions for "Pawvision" folder in "Pawvision" target */,
+			);
 			path = Pawvision;
 			sourceTree = "<group>";
 		};
@@ -75,6 +93,7 @@
 		C875C82B2DE251A9000E7AC9 = {
 			isa = PBXGroup;
 			children = (
+				C81D295D2DEBA83300193F82 /* Readme.md */,
 				C875C8362DE251A9000E7AC9 /* Pawvision */,
 				C875C8442DE251AB000E7AC9 /* PawvisionTests */,
 				C875C84E2DE251AB000E7AC9 /* PawvisionUITests */,
@@ -212,6 +231,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C81D295E2DEBA84200193F82 /* Readme.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -399,7 +419,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = M848TUBDQ7;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Pawvision/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -427,7 +448,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = M848TUBDQ7;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Pawvision/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
