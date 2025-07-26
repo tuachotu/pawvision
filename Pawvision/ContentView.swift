@@ -235,16 +235,8 @@ struct ContentView: View {
                             .padding(.horizontal)
 
                             Button(action: {
-                                let size = CGSize(width: original.size.width + filtered.size.width,
-                                                  height: max(original.size.height, filtered.size.height))
-                                UIGraphicsBeginImageContextWithOptions(size, false, 0.0)
-                                original.draw(in: CGRect(origin: .zero, size: original.size))
-                                filtered.draw(in: CGRect(origin: CGPoint(x: original.size.width, y: 0),
-                                                         size: filtered.size))
-                                let finalImage = UIGraphicsGetImageFromCurrentImageContext()
-                                UIGraphicsEndImageContext()
-                                if let image = finalImage {
-                                    UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+                                if let comparisonImage = createShareableComparisonImage(original: original, filtered: filtered) {
+                                    UIImageWriteToSavedPhotosAlbum(comparisonImage, nil, nil, nil)
                                 }
                                 showSaveOptions = false
                                 showCaptureSuccess = true
@@ -260,16 +252,8 @@ struct ContentView: View {
 
                             // Share Comparison button
                             Button(action: {
-                                let size = CGSize(width: original.size.width + filtered.size.width,
-                                                  height: max(original.size.height, filtered.size.height))
-                                UIGraphicsBeginImageContextWithOptions(size, false, 0.0)
-                                original.draw(in: CGRect(origin: .zero, size: original.size))
-                                filtered.draw(in: CGRect(origin: CGPoint(x: original.size.width, y: 0),
-                                                         size: filtered.size))
-                                let finalImage = UIGraphicsGetImageFromCurrentImageContext()
-                                UIGraphicsEndImageContext()
-                                if let image = finalImage {
-                                    shareImage = image
+                                if let comparisonImage = createShareableComparisonImage(original: original, filtered: filtered) {
+                                    shareImage = comparisonImage
                                 }
                             }) {
                                 Text("Share Comparison")
@@ -364,7 +348,11 @@ struct ContentView: View {
             }
             .sheet(isPresented: $showShareSheet) {
                 if let image = shareImage {
-                    ShareSheet(activityItems: [image])
+                    ShareSheet(activityItems: ["Through my eyes | Through my dog's eyes", image]) {
+                        // Reset share state when sheet is dismissed
+                        shareImage = nil
+                        showShareSheet = false
+                    }
                 }
             }
             .onChange(of: shareImage) { image in
@@ -424,17 +412,8 @@ struct ContentView: View {
 
                             Button(action: {
                                 // Compose and save comparison image
-                                let original = selectedImage
-                                let size = CGSize(width: original.size.width + filteredImage.size.width,
-                                                  height: max(original.size.height, filteredImage.size.height))
-                                UIGraphicsBeginImageContextWithOptions(size, false, 0.0)
-                                original.draw(in: CGRect(origin: .zero, size: original.size))
-                                filteredImage.draw(in: CGRect(origin: CGPoint(x: original.size.width, y: 0),
-                                                             size: filteredImage.size))
-                                let finalImage = UIGraphicsGetImageFromCurrentImageContext()
-                                UIGraphicsEndImageContext()
-                                if let image = finalImage {
-                                    UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+                                if let comparisonImage = createShareableComparisonImage(original: selectedImage, filtered: filteredImage) {
+                                    UIImageWriteToSavedPhotosAlbum(comparisonImage, nil, nil, nil)
                                     showSaveSuccess = true
                                 }
                             }) {
@@ -449,17 +428,8 @@ struct ContentView: View {
 
                             Button(action: {
                                 // Compose and share comparison image
-                                let original = selectedImage
-                                let size = CGSize(width: original.size.width + filteredImage.size.width,
-                                                  height: max(original.size.height, filteredImage.size.height))
-                                UIGraphicsBeginImageContextWithOptions(size, false, 0.0)
-                                original.draw(in: CGRect(origin: .zero, size: original.size))
-                                filteredImage.draw(in: CGRect(origin: CGPoint(x: original.size.width, y: 0),
-                                                             size: filteredImage.size))
-                                let finalImage = UIGraphicsGetImageFromCurrentImageContext()
-                                UIGraphicsEndImageContext()
-                                if let image = finalImage {
-                                    shareImage = image
+                                if let comparisonImage = createShareableComparisonImage(original: selectedImage, filtered: filteredImage) {
+                                    shareImage = comparisonImage
                                 }
                             }) {
                                 Text("Share Comparison")
@@ -514,7 +484,11 @@ struct ContentView: View {
             }
             .sheet(isPresented: $showShareSheet) {
                 if let image = shareImage {
-                    ShareSheet(activityItems: [image])
+                    ShareSheet(activityItems: ["Through my eyes | Through my dog's eyes", image]) {
+                        // Reset share state when sheet is dismissed
+                        shareImage = nil
+                        showShareSheet = false
+                    }
                 }
             }
             .onChange(of: shareImage) { image in
@@ -614,6 +588,46 @@ struct ContentView: View {
         }
     }
     
+    func createShareableComparisonImage(original: UIImage, filtered: UIImage) -> UIImage? {
+        // Resize images to reasonable sharing size (max 1200px width for composite)
+        let maxWidth: CGFloat = 600 // Each image max 600px, so composite will be 1200px
+        
+        let originalResized = resizeImageForSharing(original, maxWidth: maxWidth)
+        let filteredResized = resizeImageForSharing(filtered, maxWidth: maxWidth)
+        
+        // Create composite with fixed scale to avoid memory issues
+        let totalWidth = originalResized.size.width + filteredResized.size.width
+        let maxHeight = max(originalResized.size.height, filteredResized.size.height)
+        let size = CGSize(width: totalWidth, height: maxHeight)
+        
+        UIGraphicsBeginImageContextWithOptions(size, false, 1.0) // Fixed 1.0 scale
+        defer { UIGraphicsEndImageContext() }
+        
+        // Draw original image
+        originalResized.draw(in: CGRect(origin: .zero, size: originalResized.size))
+        
+        // Draw filtered image next to it
+        filteredResized.draw(in: CGRect(
+            origin: CGPoint(x: originalResized.size.width, y: 0),
+            size: filteredResized.size
+        ))
+        
+        return UIGraphicsGetImageFromCurrentImageContext()
+    }
+    
+    func resizeImageForSharing(_ image: UIImage, maxWidth: CGFloat) -> UIImage {
+        let aspectRatio = image.size.height / image.size.width
+        let newWidth = min(image.size.width, maxWidth)
+        let newHeight = newWidth * aspectRatio
+        let newSize = CGSize(width: newWidth, height: newHeight)
+        
+        UIGraphicsBeginImageContextWithOptions(newSize, false, 1.0)
+        defer { UIGraphicsEndImageContext() }
+        
+        image.draw(in: CGRect(origin: .zero, size: newSize))
+        return UIGraphicsGetImageFromCurrentImageContext() ?? image
+    }
+
     func saveVideoToPhotos(_ videoURL: URL) {
         PHPhotoLibrary.requestAuthorization { status in
             guard status == .authorized else { return }
@@ -681,9 +695,23 @@ struct ContentView: View {
 struct ShareSheet: UIViewControllerRepresentable {
     var activityItems: [Any]
     var applicationActivities: [UIActivity]? = nil
+    var onDismiss: (() -> Void)?
 
     func makeUIViewController(context: Context) -> UIActivityViewController {
-        return UIActivityViewController(activityItems: activityItems, applicationActivities: applicationActivities)
+        let activityVC = UIActivityViewController(activityItems: activityItems, applicationActivities: applicationActivities)
+        
+        // Handle completion (success or cancellation)
+        activityVC.completionWithItemsHandler = { _, completed, _, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("Share error: \(error.localizedDescription)")
+                }
+                // Always call onDismiss to reset state
+                onDismiss?()
+            }
+        }
+        
+        return activityVC
     }
 
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
