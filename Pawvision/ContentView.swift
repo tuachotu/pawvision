@@ -7,10 +7,15 @@
 
 import SwiftUI
 import PhotosUI
+import Photos
 
 struct ContentView: View {
     enum ScreenMode {
         case home, camera, capture, convert
+    }
+    
+    enum RecordingState {
+        case idle, recording, complete
     }
 
     @State private var mode: ScreenMode = .home
@@ -26,6 +31,13 @@ struct ContentView: View {
     @State private var capturedOriginal: UIImage?
     @State private var showSaveOptions = false
 
+    // Video recording state management
+    @State private var recordingState: RecordingState = .idle
+    @State private var recordingRequested = false
+    @State private var stopRecordingRequested = false
+    @State private var recordedVideoURL: URL?
+    @State private var showVideoSaveOptions = false
+
     // Share sheet state for comparison sharing
     @State private var showShareSheet = false
     @State private var shareImage: UIImage?
@@ -37,19 +49,144 @@ struct ContentView: View {
                 Color.black
                     .ignoresSafeArea()
 
-                CameraView(captureRequested: .constant(false), onCapture: { _, _ in })
-                    .ignoresSafeArea()
+                // Camera view with recording capabilities
+                CameraView(
+                    captureRequested: .constant(false),
+                    onCapture: { _, _ in },
+                    recordingRequested: $recordingRequested,
+                    stopRecordingRequested: $stopRecordingRequested,
+                    onRecordingComplete: { videoURL in
+                        recordedVideoURL = videoURL
+                        recordingState = .complete
+                        showVideoSaveOptions = true
+                    }
+                )
+                .ignoresSafeArea()
 
+                // Recording UI based on current state
                 VStack {
                     Spacer()
-                    Button("Stop Camera") {
-                        mode = .home
+                    
+                    switch recordingState {
+                    case .idle:
+                        // Show Start Recording and Back buttons
+                        HStack(spacing: 20) {
+                            Button("Back") {
+                                mode = .home
+                                recordingState = .idle
+                            }
+                            .font(.headline)
+                            .padding()
+                            .background(Color.white.opacity(0.7))
+                            .cornerRadius(8)
+                            .foregroundColor(.blue)
+                            
+                            Button("Start Recording") {
+                                recordingState = .recording
+                                recordingRequested = true
+                            }
+                            .font(.headline)
+                            .fontWeight(.bold)
+                            .padding()
+                            .background(Color.red.opacity(0.8))
+                            .cornerRadius(8)
+                            .foregroundColor(.white)
+                        }
+                        .padding(.bottom, 40)
+                        
+                    case .recording:
+                        // Show only Stop Recording button with recording indicator
+                        VStack(spacing: 10) {
+                            HStack {
+                                Circle()
+                                    .fill(Color.red)
+                                    .frame(width: 12, height: 12)
+                                Text("Recording...")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                            }
+                            
+                            Button("Stop Recording") {
+                                recordingState = .idle
+                                stopRecordingRequested = true
+                            }
+                            .font(.headline)
+                            .fontWeight(.bold)
+                            .padding()
+                            .background(Color.gray.opacity(0.8))
+                            .cornerRadius(8)
+                            .foregroundColor(.white)
+                        }
+                        .padding(.bottom, 40)
+                        
+                    case .complete:
+                        // This state is handled by showVideoSaveOptions overlay
+                        EmptyView()
                     }
-                    .font(.headline)
-                    .padding()
-                    .background(Color.white.opacity(0.7))
-                    .cornerRadius(8)
-                    .padding(.bottom, 40)
+                }
+                
+                // Video save options overlay
+                if showVideoSaveOptions {
+                    Color.black.opacity(0.8)
+                        .ignoresSafeArea()
+                    
+                    VStack(spacing: 20) {
+                        Text("Recording Complete!")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .padding(.top, 40)
+                        
+                        Spacer()
+                        
+                        VStack(spacing: 16) {
+                            Button("Save to Photos") {
+                                if let videoURL = recordedVideoURL {
+                                    saveVideoToPhotos(videoURL)
+                                }
+                            }
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.green.opacity(0.8))
+                            .cornerRadius(10)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 40)
+                            
+                            Button("Go Back") {
+                                // Discard recording and reset state
+                                if let videoURL = recordedVideoURL {
+                                    try? FileManager.default.removeItem(at: videoURL)
+                                }
+                                recordedVideoURL = nil
+                                showVideoSaveOptions = false
+                                recordingState = .idle
+                            }
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.gray.opacity(0.8))
+                            .cornerRadius(10)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 40)
+                        }
+                        .padding(.bottom, 40)
+                    }
+                }
+                
+                // Success message for video save
+                if showSaveSuccess {
+                    VStack {
+                        Spacer()
+                        Text("Video Saved to Photos! 🐾")
+                            .font(.headline)
+                            .padding()
+                            .background(Color.green.opacity(0.85))
+                            .cornerRadius(12)
+                            .foregroundColor(.white)
+                            .padding(.bottom, 120)
+                    }
+                    .transition(.opacity)
                 }
             }
 
@@ -162,11 +299,17 @@ struct ContentView: View {
                     .padding()
                 } else {
                     Color.black.ignoresSafeArea()
-                    CameraView(captureRequested: $captureRequested, onCapture: { original, filtered in
-                        capturedOriginal = original
-                        capturedFiltered = filtered
-                        showSaveOptions = true
-                    })
+                    CameraView(
+                        captureRequested: $captureRequested, 
+                        onCapture: { original, filtered in
+                            capturedOriginal = original
+                            capturedFiltered = filtered
+                            showSaveOptions = true
+                        },
+                        recordingRequested: .constant(false),
+                        stopRecordingRequested: .constant(false),
+                        onRecordingComplete: { _ in }
+                    )
                     .ignoresSafeArea()
                     VStack {
                         Spacer()
@@ -467,6 +610,37 @@ struct ContentView: View {
                     Spacer()
                 }
                 .padding()
+            }
+        }
+    }
+    
+    func saveVideoToPhotos(_ videoURL: URL) {
+        PHPhotoLibrary.requestAuthorization { status in
+            guard status == .authorized else { return }
+            
+            PHPhotoLibrary.shared().performChanges({
+                PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: videoURL)
+            }) { success, error in
+                DispatchQueue.main.async {
+                    if success {
+                        // Clean up temporary file
+                        try? FileManager.default.removeItem(at: videoURL)
+                        
+                        // Reset state and show success
+                        recordedVideoURL = nil
+                        showVideoSaveOptions = false
+                        recordingState = .idle
+                        showSaveSuccess = true
+                        
+                        // Hide success message after delay
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                            showSaveSuccess = false
+                        }
+                    } else {
+                        // Handle error - you could show an error message here
+                        print("Failed to save video: \(error?.localizedDescription ?? "Unknown error")")
+                    }
+                }
             }
         }
     }

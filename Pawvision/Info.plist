@@ -42,6 +42,9 @@
      <key>NSPhotoLibraryUsageDescription</key>
      <string>Dogstagram lets you pick photos to see how your dog would view them.</string>
 
+     <key>NSMicrophoneUsageDescription</key>
+     <string>Pawvision may need microphone access for video recording functionality.</string>
+
      <key>UISupportedInterfaceOrientations</key>
      <array>
     		<string>UIInterfaceOrientationPortrait</string>
