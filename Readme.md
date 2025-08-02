@@ -1,10 +1,10 @@
 # 🐾 PawVision
 
-**PawVision** is an iOS app that simulates how dogs perceive the world through their eyes. Powered by Core Image filters and real-time camera input, PawVision offers a fun and educational glimpse into "dog vision."
+**PawVision** is an iOS app that simulates how dogs perceive the world through their eyes. Powered by Core Image filters and real-time camera input, PawVision offers a fun and educational glimpse into "dog vision.
 
 ---
 
-## 📱 Features
+## Features
 
 - Live camera filter simulating canine color vision
 - Simple and intuitive UI
