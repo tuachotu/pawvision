@@ -7,10 +7,47 @@
 
 import SwiftUI
 import PhotosUI
+import Photos
+
+struct DesignSystem {
+    static let cornerRadius: CGFloat = 16
+    static let smallCornerRadius: CGFloat = 12
+    static let cardPadding: CGFloat = 20
+    static let spacing: CGFloat = 16
+    static let smallSpacing: CGFloat = 8
+    
+    struct Colors {
+        static let primary = Color.blue
+        static let secondary = Color.indigo
+        static let accent = Color.orange
+        static let background = Color(.systemBackground)
+        static let cardBackground = Color(.secondarySystemBackground)
+        static let textPrimary = Color.primary
+        static let textSecondary = Color.secondary
+        static let overlay = Color.black.opacity(0.3)
+    }
+    
+    struct Typography {
+        static let largeTitle = Font.system(size: 34, weight: .bold, design: .rounded)
+        static let title = Font.system(size: 28, weight: .semibold, design: .rounded)
+        static let headline = Font.system(size: 17, weight: .semibold)
+        static let body = Font.system(size: 17, weight: .regular)
+        static let caption = Font.system(size: 12, weight: .medium)
+    }
+    
+    struct Shadows {
+        static let card = Color.black.opacity(0.1)
+        static let button = Color.black.opacity(0.15)
+    }
+}
 
 struct ContentView: View {
     enum ScreenMode {
         case home, camera, capture, convert
+    }
+    
+    enum RecordingState {
+        case idle, recording, complete
     }
 
     @State private var mode: ScreenMode = .home
@@ -26,6 +63,13 @@ struct ContentView: View {
     @State private var capturedOriginal: UIImage?
     @State private var showSaveOptions = false
 
+    // Video recording state management
+    @State private var recordingState: RecordingState = .idle
+    @State private var recordingRequested = false
+    @State private var stopRecordingRequested = false
+    @State private var recordedVideoURL: URL?
+    @State private var showVideoSaveOptions = false
+
     // Share sheet state for comparison sharing
     @State private var showShareSheet = false
     @State private var shareImage: UIImage?
@@ -37,19 +81,144 @@ struct ContentView: View {
                 Color.black
                     .ignoresSafeArea()
 
-                CameraView(captureRequested: .constant(false), onCapture: { _, _ in })
-                    .ignoresSafeArea()
+                // Camera view with recording capabilities
+                CameraView(
+                    captureRequested: .constant(false),
+                    onCapture: { _, _ in },
+                    recordingRequested: $recordingRequested,
+                    stopRecordingRequested: $stopRecordingRequested,
+                    onRecordingComplete: { videoURL in
+                        recordedVideoURL = videoURL
+                        recordingState = .complete
+                        showVideoSaveOptions = true
+                    }
+                )
+                .ignoresSafeArea()
 
+                // Recording UI based on current state
                 VStack {
                     Spacer()
-                    Button("Stop Camera") {
-                        mode = .home
+                    
+                    switch recordingState {
+                    case .idle:
+                        // Show Start Recording and Back buttons
+                        HStack(spacing: 20) {
+                            Button("Back") {
+                                mode = .home
+                                recordingState = .idle
+                            }
+                            .font(.headline)
+                            .padding()
+                            .background(Color.white.opacity(0.7))
+                            .cornerRadius(8)
+                            .foregroundColor(.blue)
+                            
+                            Button("Start Recording") {
+                                recordingState = .recording
+                                recordingRequested = true
+                            }
+                            .font(.headline)
+                            .fontWeight(.bold)
+                            .padding()
+                            .background(Color.red.opacity(0.8))
+                            .cornerRadius(8)
+                            .foregroundColor(.white)
+                        }
+                        .padding(.bottom, 40)
+                        
+                    case .recording:
+                        // Show only Stop Recording button with recording indicator
+                        VStack(spacing: 10) {
+                            HStack {
+                                Circle()
+                                    .fill(Color.red)
+                                    .frame(width: 12, height: 12)
+                                Text("Recording...")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                            }
+                            
+                            Button("Stop Recording") {
+                                recordingState = .idle
+                                stopRecordingRequested = true
+                            }
+                            .font(.headline)
+                            .fontWeight(.bold)
+                            .padding()
+                            .background(Color.gray.opacity(0.8))
+                            .cornerRadius(8)
+                            .foregroundColor(.white)
+                        }
+                        .padding(.bottom, 40)
+                        
+                    case .complete:
+                        // This state is handled by showVideoSaveOptions overlay
+                        EmptyView()
                     }
-                    .font(.headline)
-                    .padding()
-                    .background(Color.white.opacity(0.7))
-                    .cornerRadius(8)
-                    .padding(.bottom, 40)
+                }
+                
+                // Video save options overlay
+                if showVideoSaveOptions {
+                    Color.black.opacity(0.8)
+                        .ignoresSafeArea()
+                    
+                    VStack(spacing: 20) {
+                        Text("Recording Complete!")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .padding(.top, 40)
+                        
+                        Spacer()
+                        
+                        VStack(spacing: 16) {
+                            Button("Save to Photos") {
+                                if let videoURL = recordedVideoURL {
+                                    saveVideoToPhotos(videoURL)
+                                }
+                            }
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.green.opacity(0.8))
+                            .cornerRadius(10)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 40)
+                            
+                            Button("Go Back") {
+                                // Discard recording and reset state
+                                if let videoURL = recordedVideoURL {
+                                    try? FileManager.default.removeItem(at: videoURL)
+                                }
+                                recordedVideoURL = nil
+                                showVideoSaveOptions = false
+                                recordingState = .idle
+                            }
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.gray.opacity(0.8))
+                            .cornerRadius(10)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 40)
+                        }
+                        .padding(.bottom, 40)
+                    }
+                }
+                
+                // Success message for video save
+                if showSaveSuccess {
+                    VStack {
+                        Spacer()
+                        Text("Video Saved to Photos! 🐾")
+                            .font(.headline)
+                            .padding()
+                            .background(Color.green.opacity(0.85))
+                            .cornerRadius(12)
+                            .foregroundColor(.white)
+                            .padding(.bottom, 120)
+                    }
+                    .transition(.opacity)
                 }
             }
 
@@ -98,16 +267,8 @@ struct ContentView: View {
                             .padding(.horizontal)
 
                             Button(action: {
-                                let size = CGSize(width: original.size.width + filtered.size.width,
-                                                  height: max(original.size.height, filtered.size.height))
-                                UIGraphicsBeginImageContextWithOptions(size, false, 0.0)
-                                original.draw(in: CGRect(origin: .zero, size: original.size))
-                                filtered.draw(in: CGRect(origin: CGPoint(x: original.size.width, y: 0),
-                                                         size: filtered.size))
-                                let finalImage = UIGraphicsGetImageFromCurrentImageContext()
-                                UIGraphicsEndImageContext()
-                                if let image = finalImage {
-                                    UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+                                if let comparisonImage = createShareableComparisonImage(original: original, filtered: filtered) {
+                                    UIImageWriteToSavedPhotosAlbum(comparisonImage, nil, nil, nil)
                                 }
                                 showSaveOptions = false
                                 showCaptureSuccess = true
@@ -123,16 +284,8 @@ struct ContentView: View {
 
                             // Share Comparison button
                             Button(action: {
-                                let size = CGSize(width: original.size.width + filtered.size.width,
-                                                  height: max(original.size.height, filtered.size.height))
-                                UIGraphicsBeginImageContextWithOptions(size, false, 0.0)
-                                original.draw(in: CGRect(origin: .zero, size: original.size))
-                                filtered.draw(in: CGRect(origin: CGPoint(x: original.size.width, y: 0),
-                                                         size: filtered.size))
-                                let finalImage = UIGraphicsGetImageFromCurrentImageContext()
-                                UIGraphicsEndImageContext()
-                                if let image = finalImage {
-                                    shareImage = image
+                                if let comparisonImage = createShareableComparisonImage(original: original, filtered: filtered) {
+                                    shareImage = comparisonImage
                                 }
                             }) {
                                 Text("Share Comparison")
@@ -162,11 +315,17 @@ struct ContentView: View {
                     .padding()
                 } else {
                     Color.black.ignoresSafeArea()
-                    CameraView(captureRequested: $captureRequested, onCapture: { original, filtered in
-                        capturedOriginal = original
-                        capturedFiltered = filtered
-                        showSaveOptions = true
-                    })
+                    CameraView(
+                        captureRequested: $captureRequested, 
+                        onCapture: { original, filtered in
+                            capturedOriginal = original
+                            capturedFiltered = filtered
+                            showSaveOptions = true
+                        },
+                        recordingRequested: .constant(false),
+                        stopRecordingRequested: .constant(false),
+                        onRecordingComplete: { _ in }
+                    )
                     .ignoresSafeArea()
                     VStack {
                         Spacer()
@@ -221,7 +380,11 @@ struct ContentView: View {
             }
             .sheet(isPresented: $showShareSheet) {
                 if let image = shareImage {
-                    ShareSheet(activityItems: [image])
+                    ShareSheet(activityItems: ["Through my eyes | Through my dog's eyes", image, "Download Pawvision here - https://apps.apple.com/us/app/pawvision/id6746367830"]) {
+                        // Reset share state when sheet is dismissed
+                        shareImage = nil
+                        showShareSheet = false
+                    }
                 }
             }
             .onChange(of: shareImage) { image in
@@ -281,17 +444,8 @@ struct ContentView: View {
 
                             Button(action: {
                                 // Compose and save comparison image
-                                let original = selectedImage
-                                let size = CGSize(width: original.size.width + filteredImage.size.width,
-                                                  height: max(original.size.height, filteredImage.size.height))
-                                UIGraphicsBeginImageContextWithOptions(size, false, 0.0)
-                                original.draw(in: CGRect(origin: .zero, size: original.size))
-                                filteredImage.draw(in: CGRect(origin: CGPoint(x: original.size.width, y: 0),
-                                                             size: filteredImage.size))
-                                let finalImage = UIGraphicsGetImageFromCurrentImageContext()
-                                UIGraphicsEndImageContext()
-                                if let image = finalImage {
-                                    UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+                                if let comparisonImage = createShareableComparisonImage(original: selectedImage, filtered: filteredImage) {
+                                    UIImageWriteToSavedPhotosAlbum(comparisonImage, nil, nil, nil)
                                     showSaveSuccess = true
                                 }
                             }) {
@@ -306,17 +460,8 @@ struct ContentView: View {
 
                             Button(action: {
                                 // Compose and share comparison image
-                                let original = selectedImage
-                                let size = CGSize(width: original.size.width + filteredImage.size.width,
-                                                  height: max(original.size.height, filteredImage.size.height))
-                                UIGraphicsBeginImageContextWithOptions(size, false, 0.0)
-                                original.draw(in: CGRect(origin: .zero, size: original.size))
-                                filteredImage.draw(in: CGRect(origin: CGPoint(x: original.size.width, y: 0),
-                                                             size: filteredImage.size))
-                                let finalImage = UIGraphicsGetImageFromCurrentImageContext()
-                                UIGraphicsEndImageContext()
-                                if let image = finalImage {
-                                    shareImage = image
+                                if let comparisonImage = createShareableComparisonImage(original: selectedImage, filtered: filteredImage) {
+                                    shareImage = comparisonImage
                                 }
                             }) {
                                 Text("Share Comparison")
@@ -371,7 +516,11 @@ struct ContentView: View {
             }
             .sheet(isPresented: $showShareSheet) {
                 if let image = shareImage {
-                    ShareSheet(activityItems: [image])
+                    ShareSheet(activityItems: ["Through my eyes | Through my dog's eyes", image, "Download Pawvision here - https://apps.apple.com/us/app/pawvision/id6746367830"]) {
+                        // Reset share state when sheet is dismissed
+                        shareImage = nil
+                        showShareSheet = false
+                    }
                 }
             }
             .onChange(of: shareImage) { image in
@@ -470,6 +619,77 @@ struct ContentView: View {
             }
         }
     }
+    
+    func createShareableComparisonImage(original: UIImage, filtered: UIImage) -> UIImage? {
+        // Resize images to reasonable sharing size (max 1200px width for composite)
+        let maxWidth: CGFloat = 600 // Each image max 600px, so composite will be 1200px
+        
+        let originalResized = resizeImageForSharing(original, maxWidth: maxWidth)
+        let filteredResized = resizeImageForSharing(filtered, maxWidth: maxWidth)
+        
+        // Create composite with fixed scale to avoid memory issues
+        let totalWidth = originalResized.size.width + filteredResized.size.width
+        let maxHeight = max(originalResized.size.height, filteredResized.size.height)
+        let size = CGSize(width: totalWidth, height: maxHeight)
+        
+        UIGraphicsBeginImageContextWithOptions(size, false, 1.0) // Fixed 1.0 scale
+        defer { UIGraphicsEndImageContext() }
+        
+        // Draw original image
+        originalResized.draw(in: CGRect(origin: .zero, size: originalResized.size))
+        
+        // Draw filtered image next to it
+        filteredResized.draw(in: CGRect(
+            origin: CGPoint(x: originalResized.size.width, y: 0),
+            size: filteredResized.size
+        ))
+        
+        return UIGraphicsGetImageFromCurrentImageContext()
+    }
+    
+    func resizeImageForSharing(_ image: UIImage, maxWidth: CGFloat) -> UIImage {
+        let aspectRatio = image.size.height / image.size.width
+        let newWidth = min(image.size.width, maxWidth)
+        let newHeight = newWidth * aspectRatio
+        let newSize = CGSize(width: newWidth, height: newHeight)
+        
+        UIGraphicsBeginImageContextWithOptions(newSize, false, 1.0)
+        defer { UIGraphicsEndImageContext() }
+        
+        image.draw(in: CGRect(origin: .zero, size: newSize))
+        return UIGraphicsGetImageFromCurrentImageContext() ?? image
+    }
+
+    func saveVideoToPhotos(_ videoURL: URL) {
+        PHPhotoLibrary.requestAuthorization { status in
+            guard status == .authorized else { return }
+            
+            PHPhotoLibrary.shared().performChanges({
+                PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: videoURL)
+            }) { success, error in
+                DispatchQueue.main.async {
+                    if success {
+                        // Clean up temporary file
+                        try? FileManager.default.removeItem(at: videoURL)
+                        
+                        // Reset state and show success
+                        recordedVideoURL = nil
+                        showVideoSaveOptions = false
+                        recordingState = .idle
+                        showSaveSuccess = true
+                        
+                        // Hide success message after delay
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                            showSaveSuccess = false
+                        }
+                    } else {
+                        // Handle error - you could show an error message here
+                        print("Failed to save video: \(error?.localizedDescription ?? "Unknown error")")
+                    }
+                }
+            }
+        }
+    }
 
     func applyDogVision(to image: UIImage) -> UIImage? {
         guard let ciImage = CIImage(image: image) else { return nil }
@@ -507,9 +727,23 @@ struct ContentView: View {
 struct ShareSheet: UIViewControllerRepresentable {
     var activityItems: [Any]
     var applicationActivities: [UIActivity]? = nil
+    var onDismiss: (() -> Void)?
 
     func makeUIViewController(context: Context) -> UIActivityViewController {
-        return UIActivityViewController(activityItems: activityItems, applicationActivities: applicationActivities)
+        let activityVC = UIActivityViewController(activityItems: activityItems, applicationActivities: applicationActivities)
+        
+        // Handle completion (success or cancellation)
+        activityVC.completionWithItemsHandler = { _, completed, _, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("Share error: \(error.localizedDescription)")
+                }
+                // Always call onDismiss to reset state
+                onDismiss?()
+            }
+        }
+        
+        return activityVC
     }
 
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
