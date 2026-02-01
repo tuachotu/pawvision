@@ -8,6 +8,7 @@
 import SwiftUI
 import PhotosUI
 import Photos
+import AVFoundation
 
 struct DesignSystem {
     static let cornerRadius: CGFloat = 16
@@ -41,11 +42,139 @@ struct DesignSystem {
     }
 }
 
+enum VisionMode: String, CaseIterable {
+    case dog = "Dog Vision"
+    case bee = "Bee Vision"
+    case snake = "Snake Vision"
+    case bird = "Bird Vision"
+
+    var icon: String {
+        switch self {
+        case .dog: return "dog"
+        case .bee: return "ant"
+        case .snake: return "bolt.horizontal"
+        case .bird: return "bird"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .dog: return "Dichromatic simulation"
+        case .bee: return "UV patterns simulated"
+        case .snake: return "Infrared heat-map"
+        case .bird: return "Enhanced acuity"
+        }
+    }
+
+    var animalName: String {
+        switch self {
+        case .dog: return "dog"
+        case .bee: return "bee"
+        case .snake: return "snake"
+        case .bird: return "bird"
+        }
+    }
+
+    var liveViewButton: String {
+        switch self {
+        case .dog: return "Fetch the View!"
+        case .bee: return "Buzz into View!"
+        case .snake: return "Sense the Heat!"
+        case .bird: return "Soar into View!"
+        }
+    }
+
+    var captureButton: String {
+        switch self {
+        case .dog: return "Capture Pawtrait"
+        case .bee: return "Capture Buzztrait"
+        case .snake: return "Capture Heatshot"
+        case .bird: return "Capture Feathertrait"
+        }
+    }
+
+    var takePhotoButton: String {
+        switch self {
+        case .dog: return "Take a Pawtrait"
+        case .bee: return "Take a Buzztrait"
+        case .snake: return "Take a Heatshot"
+        case .bird: return "Take a Feathertrait"
+        }
+    }
+
+    var convertButton: String {
+        switch self {
+        case .dog: return "Paw-ify a Photo"
+        case .bee: return "Buzz-ify a Photo"
+        case .snake: return "Heat-ify a Photo"
+        case .bird: return "Feather-ify a Photo"
+        }
+    }
+
+    var photoPickerText: String {
+        switch self {
+        case .dog: return "Pick a Photo to Paw-ify"
+        case .bee: return "Pick a Photo to Buzz-ify"
+        case .snake: return "Pick a Photo to Heat-ify"
+        case .bird: return "Pick a Photo to Feather-ify"
+        }
+    }
+
+    var saveButtonLabel: String {
+        switch self {
+        case .dog: return "Save Dogified"
+        case .bee: return "Save Bee-ified"
+        case .snake: return "Save Snakified"
+        case .bird: return "Save Birdified"
+        }
+    }
+
+    var successMessage: String {
+        switch self {
+        case .dog: return "Saved to Photos! 🐾"
+        case .bee: return "Saved to Photos! 🐝"
+        case .snake: return "Saved to Photos! 🐍"
+        case .bird: return "Saved to Photos! 🐦"
+        }
+    }
+
+    var videoSuccessMessage: String {
+        switch self {
+        case .dog: return "Video Saved to Photos! 🐾"
+        case .bee: return "Video Saved to Photos! 🐝"
+        case .snake: return "Video Saved to Photos! 🐍"
+        case .bird: return "Video Saved to Photos! 🐦"
+        }
+    }
+
+    var shareMessage: String {
+        switch self {
+        case .dog: return "Through my eyes | Through my dog's eyes"
+        case .bee: return "Through my eyes | Through a bee's eyes"
+        case .snake: return "Through my eyes | Through a snake's eyes"
+        case .bird: return "Through my eyes | Through a bird's eyes"
+        }
+    }
+
+    var funFact: String {
+        switch self {
+        case .dog:
+            return "🐕 Dogs see the world in shades of blue and yellow. They can't see red or green like we do - a red ball on green grass looks yellow to them!"
+        case .bee:
+            return "🐝 Bees can see ultraviolet light that's invisible to us! Flowers have secret patterns only bees can see, like arrows pointing to yummy nectar."
+        case .snake:
+            return "🐍 Some snakes have heat-sensing superpowers! They can 'see' warm things in the dark, like a thermal camera. That's how they find their dinner!"
+        case .bird:
+            return "🦅 Birds have amazing eyesight - way better than ours! They can spot a tiny bug from far away and see colors we can't even imagine."
+        }
+    }
+}
+
 struct ContentView: View {
     enum ScreenMode {
         case home, camera, capture, convert
     }
-    
+
     enum RecordingState {
         case idle, recording, complete
     }
@@ -74,6 +203,36 @@ struct ContentView: View {
     @State private var showShareSheet = false
     @State private var shareImage: UIImage?
 
+    // Camera switch and zoom state
+    @State private var cameraPosition: AVCaptureDevice.Position = .back
+    @State private var zoomFactor: CGFloat = 1.0
+    @State private var switchCameraRequested = false
+
+    // Vision mode state
+    @State private var visionMode: VisionMode = .dog
+
+    // Convert VisionMode to VisionType for CameraView
+    var visionTypeBinding: Binding<VisionType> {
+        Binding(
+            get: {
+                switch visionMode {
+                case .dog: return .dog
+                case .bee: return .bee
+                case .snake: return .snake
+                case .bird: return .bird
+                }
+            },
+            set: {
+                switch $0 {
+                case .dog: visionMode = .dog
+                case .bee: visionMode = .bee
+                case .snake: visionMode = .snake
+                case .bird: visionMode = .bird
+                }
+            }
+        )
+    }
+
     var body: some View {
         switch mode {
         case .camera:
@@ -91,14 +250,95 @@ struct ContentView: View {
                         recordedVideoURL = videoURL
                         recordingState = .complete
                         showVideoSaveOptions = true
-                    }
+                    },
+                    cameraPosition: $cameraPosition,
+                    zoomFactor: $zoomFactor,
+                    switchCameraRequested: $switchCameraRequested,
+                    visionMode: visionTypeBinding
                 )
                 .ignoresSafeArea()
 
                 // Recording UI based on current state
                 VStack {
+                    // Top controls: Vision mode toggle and camera flip
+                    HStack {
+                        // Vision mode dropdown
+                        Menu {
+                            ForEach(VisionMode.allCases, id: \.self) { mode in
+                                Button(action: { visionMode = mode }) {
+                                    VStack(alignment: .leading) {
+                                        HStack {
+                                            Text(mode.rawValue)
+                                            if visionMode == mode {
+                                                Image(systemName: "checkmark")
+                                            }
+                                        }
+                                        Text(mode.subtitle)
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                            }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: visionMode.icon)
+                                Text(visionMode.rawValue)
+                                Image(systemName: "chevron.down")
+                                    .font(.caption)
+                            }
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(Color.black.opacity(0.5))
+                            .cornerRadius(10)
+                        }
+                        .padding(.leading, 16)
+
+                        Spacer()
+
+                        Button(action: {
+                            switchCameraRequested = true
+                        }) {
+                            Image(systemName: "camera.rotate")
+                                .font(.title2)
+                                .foregroundColor(.white)
+                                .padding(12)
+                                .background(Color.black.opacity(0.5))
+                                .clipShape(Circle())
+                        }
+                        .padding(.trailing, 16)
+                    }
+                    .padding(.top, 50)
+
                     Spacer()
-                    
+
+                    // Zoom slider
+                    if recordingState != .complete {
+                        VStack(spacing: 4) {
+                            Text(String(format: "%.1fx", zoomFactor))
+                                .font(.caption)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.black.opacity(0.5))
+                                .cornerRadius(8)
+
+                            HStack {
+                                Text("1x")
+                                    .font(.caption)
+                                    .foregroundColor(.white)
+                                Slider(value: $zoomFactor, in: 1.0...5.0, step: 0.1)
+                                    .accentColor(.white)
+                                Text("5x")
+                                    .font(.caption)
+                                    .foregroundColor(.white)
+                            }
+                            .padding(.horizontal, 40)
+                        }
+                        .padding(.bottom, 10)
+                    }
+
                     switch recordingState {
                     case .idle:
                         // Show Start Recording and Back buttons
@@ -106,13 +346,14 @@ struct ContentView: View {
                             Button("Back") {
                                 mode = .home
                                 recordingState = .idle
+                                zoomFactor = 1.0
                             }
                             .font(.headline)
                             .padding()
                             .background(Color.white.opacity(0.7))
                             .cornerRadius(8)
                             .foregroundColor(.blue)
-                            
+
                             Button("Start Recording") {
                                 recordingState = .recording
                                 recordingRequested = true
@@ -125,7 +366,7 @@ struct ContentView: View {
                             .foregroundColor(.white)
                         }
                         .padding(.bottom, 40)
-                        
+
                     case .recording:
                         // Show only Stop Recording button with recording indicator
                         VStack(spacing: 10) {
@@ -137,7 +378,7 @@ struct ContentView: View {
                                     .font(.headline)
                                     .foregroundColor(.white)
                             }
-                            
+
                             Button("Stop Recording") {
                                 recordingState = .idle
                                 stopRecordingRequested = true
@@ -150,7 +391,7 @@ struct ContentView: View {
                             .foregroundColor(.white)
                         }
                         .padding(.bottom, 40)
-                        
+
                     case .complete:
                         // This state is handled by showVideoSaveOptions overlay
                         EmptyView()
@@ -210,7 +451,7 @@ struct ContentView: View {
                 if showSaveSuccess {
                     VStack {
                         Spacer()
-                        Text("Video Saved to Photos! 🐾")
+                        Text(visionMode.videoSuccessMessage)
                             .font(.headline)
                             .padding()
                             .background(Color.green.opacity(0.85))
@@ -239,7 +480,7 @@ struct ContentView: View {
                                     .cornerRadius(10)
                             }
                             VStack {
-                                Text("Dog Vision")
+                                Text(visionMode.rawValue)
                                     .font(.caption)
                                     .foregroundColor(.white)
                                 Image(uiImage: filtered)
@@ -257,7 +498,7 @@ struct ContentView: View {
                                 showSaveOptions = false
                                 showCaptureSuccess = true
                             }) {
-                                Text("Save Dogified")
+                                Text(visionMode.saveButtonLabel)
                                     .frame(maxWidth: .infinity)
                             }
                             .font(.headline)
@@ -316,7 +557,7 @@ struct ContentView: View {
                 } else {
                     Color.black.ignoresSafeArea()
                     CameraView(
-                        captureRequested: $captureRequested, 
+                        captureRequested: $captureRequested,
                         onCapture: { original, filtered in
                             capturedOriginal = original
                             capturedFiltered = filtered
@@ -324,13 +565,107 @@ struct ContentView: View {
                         },
                         recordingRequested: .constant(false),
                         stopRecordingRequested: .constant(false),
-                        onRecordingComplete: { _ in }
+                        onRecordingComplete: { _ in },
+                        cameraPosition: $cameraPosition,
+                        zoomFactor: $zoomFactor,
+                        switchCameraRequested: $switchCameraRequested,
+                        visionMode: visionTypeBinding
                     )
                     .ignoresSafeArea()
                     VStack {
+                        // Top controls: Back button, Vision mode toggle, and Camera flip
+                        HStack {
+                            Button(action: {
+                                mode = .home
+                                zoomFactor = 1.0
+                            }) {
+                                Text("Back")
+                                    .padding()
+                                    .background(Color.white.opacity(0.7))
+                                    .cornerRadius(8)
+                                    .foregroundColor(.blue)
+                            }
+                            .padding(.leading, 16)
+
+                            Spacer()
+
+                            // Vision mode dropdown
+                            Menu {
+                                ForEach(VisionMode.allCases, id: \.self) { mode in
+                                    Button(action: { visionMode = mode }) {
+                                        VStack(alignment: .leading) {
+                                            HStack {
+                                                Text(mode.rawValue)
+                                                if visionMode == mode {
+                                                    Image(systemName: "checkmark")
+                                                }
+                                            }
+                                            Text(mode.subtitle)
+                                                .font(.caption2)
+                                                .foregroundColor(.secondary)
+                                        }
+                                    }
+                                }
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: visionMode.icon)
+                                    Text(visionMode.rawValue)
+                                    Image(systemName: "chevron.down")
+                                        .font(.caption)
+                                }
+                                .font(.subheadline)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(Color.black.opacity(0.5))
+                                .cornerRadius(10)
+                            }
+
+                            Spacer()
+
+                            Button(action: {
+                                switchCameraRequested = true
+                            }) {
+                                Image(systemName: "camera.rotate")
+                                    .font(.title2)
+                                    .foregroundColor(.white)
+                                    .padding(12)
+                                    .background(Color.black.opacity(0.5))
+                                    .clipShape(Circle())
+                            }
+                            .padding(.trailing, 16)
+                        }
+                        .padding(.top, 50)
+
                         Spacer()
+
+                        // Zoom slider
+                        VStack(spacing: 4) {
+                            Text(String(format: "%.1fx", zoomFactor))
+                                .font(.caption)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.black.opacity(0.5))
+                                .cornerRadius(8)
+
+                            HStack {
+                                Text("1x")
+                                    .font(.caption)
+                                    .foregroundColor(.white)
+                                Slider(value: $zoomFactor, in: 1.0...5.0, step: 0.1)
+                                    .accentColor(.white)
+                                Text("5x")
+                                    .font(.caption)
+                                    .foregroundColor(.white)
+                            }
+                            .padding(.horizontal, 40)
+                        }
+                        .padding(.bottom, 10)
+
+                        // Capture button
                         Button(action: { captureRequested = true }) {
-                            Text("Capture Pawtrait")
+                            Text(visionMode.captureButton)
                                 .frame(maxWidth: .infinity)
                         }
                         .font(.title2)
@@ -345,7 +680,7 @@ struct ContentView: View {
                     if showCaptureSuccess {
                         VStack {
                             Spacer()
-                            Text("Saved to Photos! 🐾")
+                            Text(visionMode.successMessage)
                                 .font(.headline)
                                 .padding()
                                 .background(Color.green.opacity(0.85))
@@ -360,27 +695,11 @@ struct ContentView: View {
                             }
                         }
                     }
-                    VStack {
-                        HStack {
-                            Spacer()
-                            Button(action: { mode = .home }) {
-                                Text("Back")
-                                    .frame(maxWidth: .infinity)
-                            }
-                            .padding()
-                            .background(Color.white.opacity(0.7))
-                            .cornerRadius(8)
-                            .foregroundColor(.blue)
-                        }
-                        Spacer()
-                    }
-                    .padding(.top, 30)
-                    .padding(.trailing, 16)
                 }
             }
             .sheet(isPresented: $showShareSheet) {
                 if let image = shareImage {
-                    ShareSheet(activityItems: ["Through my eyes | Through my dog's eyes", image, "Download Pawvision here - https://apps.apple.com/us/app/pawvision/id6746367830"]) {
+                    ShareSheet(activityItems: [visionMode.shareMessage, image, "Download Pawvision here - https://apps.apple.com/us/app/pawvision/id6746367830"]) {
                         // Reset share state when sheet is dismissed
                         shareImage = nil
                         showShareSheet = false
@@ -403,6 +722,39 @@ struct ContentView: View {
                 .ignoresSafeArea()
 
                 VStack(spacing: 18) {
+                    // Vision mode dropdown at top
+                    Menu {
+                        ForEach(VisionMode.allCases, id: \.self) { mode in
+                            Button(action: { visionMode = mode }) {
+                                VStack(alignment: .leading) {
+                                    HStack {
+                                        Text(mode.rawValue)
+                                        if visionMode == mode {
+                                            Image(systemName: "checkmark")
+                                        }
+                                    }
+                                    Text(mode.subtitle)
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: visionMode.icon)
+                            Text(visionMode.rawValue)
+                            Image(systemName: "chevron.down")
+                                .font(.caption)
+                        }
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(Color.white.opacity(0.2))
+                        .cornerRadius(10)
+                    }
+                    .padding(.top, 60)
+
                     Spacer()
                     if let selectedImage = selectedImage, let filteredImage = filteredImage {
                         HStack(spacing: 10) {
@@ -417,7 +769,7 @@ struct ContentView: View {
                                     .cornerRadius(10)
                             }
                             VStack {
-                                Text("Dog Vision")
+                                Text(visionMode.rawValue)
                                     .font(.caption)
                                     .foregroundColor(.white)
                                 Image(uiImage: filteredImage)
@@ -429,11 +781,10 @@ struct ContentView: View {
                         }
                         VStack(spacing: 20) {
                             Button(action: {
-                                // No conditional needed since filteredImage is already non-optional here
                                 UIImageWriteToSavedPhotosAlbum(filteredImage, nil, nil, nil)
                                 showSaveSuccess = true
                             }) {
-                                Text("Save Dogified")
+                                Text(visionMode.saveButtonLabel)
                                     .frame(maxWidth: .infinity)
                             }
                             .font(.headline)
@@ -479,7 +830,7 @@ struct ContentView: View {
                             matching: .images,
                             photoLibrary: .shared()
                         ) {
-                            Text("Pick a Photo to Paw-ify")
+                            Text(visionMode.photoPickerText)
                                 .font(.headline)
                                 .padding()
                                 .background(Color.white.opacity(0.8))
@@ -488,7 +839,7 @@ struct ContentView: View {
                         }
                     }
                     if showSaveSuccess {
-                        Text("Saved to Photos! 🐾")
+                        Text(visionMode.successMessage)
                             .font(.headline)
                             .padding()
                             .background(Color.green.opacity(0.85))
@@ -516,7 +867,7 @@ struct ContentView: View {
             }
             .sheet(isPresented: $showShareSheet) {
                 if let image = shareImage {
-                    ShareSheet(activityItems: ["Through my eyes | Through my dog's eyes", image, "Download Pawvision here - https://apps.apple.com/us/app/pawvision/id6746367830"]) {
+                    ShareSheet(activityItems: [visionMode.shareMessage, image, "Download Pawvision here - https://apps.apple.com/us/app/pawvision/id6746367830"]) {
                         // Reset share state when sheet is dismissed
                         shareImage = nil
                         showShareSheet = false
@@ -534,8 +885,14 @@ struct ContentView: View {
                     if let data = try? await item.loadTransferable(type: Data.self),
                        let image = UIImage(data: data) {
                         selectedImage = image
-                        filteredImage = applyDogVision(to: image)
+                        filteredImage = applyVisionFilter(to: image, mode: visionMode)
                     }
+                }
+            }
+            .onChange(of: visionMode) { newMode in
+                // Re-apply filter when vision mode changes
+                if let image = selectedImage {
+                    filteredImage = applyVisionFilter(to: image, mode: newMode)
                 }
             }
 
@@ -548,7 +905,7 @@ struct ContentView: View {
                 )
                 .ignoresSafeArea()
 
-                VStack(spacing: 24) {
+                VStack(spacing: 20) {
                     Spacer()
                     Image("Homepage")
                         .renderingMode(.original)
@@ -562,7 +919,7 @@ struct ContentView: View {
                         .foregroundColor(.white)
                         .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
 
-                    Text("See the world through your dog's eyes")
+                    Text("See the world through animal eyes")
                         .font(.headline)
                         .foregroundColor(.white.opacity(0.8))
 
@@ -570,7 +927,7 @@ struct ContentView: View {
                         Button(action: {
                             mode = .camera
                         }) {
-                            Text("Fetch the View!")
+                            Text(visionMode.liveViewButton)
                                 .frame(maxWidth: .infinity)
                         }
                         .font(.headline)
@@ -585,7 +942,7 @@ struct ContentView: View {
                         Button(action: {
                             mode = .capture
                         }) {
-                            Text("Take a Pawtrait")
+                            Text(visionMode.takePhotoButton)
                                 .frame(maxWidth: .infinity)
                         }
                         .font(.headline)
@@ -600,7 +957,7 @@ struct ContentView: View {
                         Button(action: {
                             mode = .convert
                         }) {
-                            Text("Paw-ify a Photo")
+                            Text(visionMode.convertButton)
                                 .frame(maxWidth: .infinity)
                         }
                         .font(.headline)
@@ -613,7 +970,54 @@ struct ContentView: View {
                         .padding(.horizontal, 40)
                     }
 
+                    // Vision mode selector on home page
+                    Menu {
+                        ForEach(VisionMode.allCases, id: \.self) { mode in
+                            Button(action: { visionMode = mode }) {
+                                HStack {
+                                    Text(mode.rawValue)
+                                    if visionMode == mode {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: visionMode.icon)
+                            Text(visionMode.rawValue)
+                            Image(systemName: "chevron.down")
+                                .font(.caption)
+                        }
+                        .font(.subheadline)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(Color.white.opacity(0.2))
+                        .cornerRadius(10)
+                    }
+                    .padding(.top, 8)
+
+                    // Fun fact about selected vision mode
+                    Text(visionMode.funFact)
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.9))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 30)
+                        .padding(.vertical, 12)
+                        .background(Color.white.opacity(0.15))
+                        .cornerRadius(12)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 8)
+
                     Spacer()
+
+                    // Disclaimer
+                    Text("For entertainment purposes only.\nNot scientifically accurate.")
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.6))
+                        .multilineTextAlignment(.center)
+                        .padding(.bottom, 20)
                 }
                 .padding()
             }
@@ -691,16 +1095,37 @@ struct ContentView: View {
         }
     }
 
-    func applyDogVision(to image: UIImage) -> UIImage? {
+    func applyVisionFilter(to image: UIImage, mode: VisionMode) -> UIImage? {
         guard let ciImage = CIImage(image: image) else { return nil }
-        let filter = CIFilter.colorMatrix()
-        filter.inputImage = ciImage
-        filter.rVector = CIVector(x: 0.625, y: 0,    z: 0, w: 0)
-        filter.gVector = CIVector(x: 0.375, y: 0.3,  z: 0.3, w: 0)
-        filter.bVector = CIVector(x: 0,     y: 0,    z: 0.7, w: 0)
         let context = CIContext()
-        guard let output = filter.outputImage,
-              let cgimg = context.createCGImage(output, from: output.extent)
+
+        let filteredCI: CIImage
+
+        switch mode {
+        case .dog:
+            // Dog Vision – Dichromatic simulation
+            let colorFilter = CIFilter.colorMatrix()
+            colorFilter.inputImage = ciImage
+            colorFilter.rVector = CIVector(x: 0.625, y: 0,    z: 0, w: 0)
+            colorFilter.gVector = CIVector(x: 0.375, y: 0.3,  z: 0.3, w: 0)
+            colorFilter.bVector = CIVector(x: 0,     y: 0,    z: 0.7, w: 0)
+            guard let output = colorFilter.outputImage else { return nil }
+            filteredCI = output
+        case .bee:
+            // Bee Vision – UV patterns simulated
+            guard let beeOutput = applyBeeVisionFilter(to: ciImage, context: context) else { return nil }
+            filteredCI = beeOutput
+        case .snake:
+            // Snake Vision – Infrared heat-map
+            guard let snakeOutput = applySnakeVisionFilter(to: ciImage, context: context) else { return nil }
+            filteredCI = snakeOutput
+        case .bird:
+            // Bird Vision – Enhanced acuity
+            guard let birdOutput = applyBirdVisionFilter(to: ciImage, context: context) else { return nil }
+            filteredCI = birdOutput
+        }
+
+        guard let cgimg = context.createCGImage(filteredCI, from: filteredCI.extent)
         else { return nil }
         let filteredUIImage = UIImage(cgImage: cgimg)
 
@@ -720,6 +1145,216 @@ struct ContentView: View {
         } else {
             return filteredUIImage
         }
+    }
+
+    // Bee Vision – UV patterns simulated
+    // Suppresses red, emphasizes blue-green, reveals hidden patterns via edge enhancement
+    // Simulates how bees see "nectar guides" - UV patterns invisible to humans
+    func applyBeeVisionFilter(to ciImage: CIImage, context: CIContext) -> CIImage? {
+        // Step 1: Apply color matrix - suppress red channel, emphasize blue-green
+        let colorFilter = CIFilter.colorMatrix()
+        colorFilter.inputImage = ciImage
+        colorFilter.rVector = CIVector(x: 0.1,  y: 0.35, z: 0.05, w: 0)
+        colorFilter.gVector = CIVector(x: 0.05, y: 0.8,  z: 0.2,  w: 0)
+        colorFilter.bVector = CIVector(x: 0.05, y: 0.15, z: 0.85, w: 0)
+        guard let colorShifted = colorFilter.outputImage else { return nil }
+
+        // Step 2: Blend color-shifted with original (70% color shift, 30% original)
+        let blendedColor = colorShifted.applyingFilter("CIColorMatrix", parameters: [
+            "inputAVector": CIVector(x: 0, y: 0, z: 0, w: 0.7)
+        ]).composited(over: ciImage.applyingFilter("CIColorMatrix", parameters: [
+            "inputAVector": CIVector(x: 0, y: 0, z: 0, w: 0.3)
+        ]))
+
+        // Step 3: Strong unsharp mask for structure/pattern enhancement
+        let unsharpMask = CIFilter.unsharpMask()
+        unsharpMask.inputImage = blendedColor
+        unsharpMask.radius = 6.0
+        unsharpMask.intensity = 2.0
+        guard let patternEnhanced = unsharpMask.outputImage else { return blendedColor }
+
+        // Step 4: Second pass with smaller radius for fine detail
+        let fineDetail = patternEnhanced.applyingFilter("CIUnsharpMask", parameters: [
+            "inputRadius": 2.5,
+            "inputIntensity": 1.8
+        ])
+
+        // Step 5: Strong luminance sharpening for crisp texture
+        let luminanceSharpen = CIFilter.sharpenLuminance()
+        luminanceSharpen.inputImage = fineDetail
+        luminanceSharpen.sharpness = 1.2
+        guard let sharpened = luminanceSharpen.outputImage else { return fineDetail }
+
+        // Step 6: Boost local contrast via highlight/shadow adjustment
+        let contrastBoosted = sharpened.applyingFilter("CIHighlightShadowAdjust", parameters: [
+            "inputHighlightAmount": 0.8,
+            "inputShadowAmount": 0.6
+        ])
+
+        // Step 7: Final saturation and contrast boost
+        let final = contrastBoosted.applyingFilter("CIColorControls", parameters: [
+            "inputSaturation": 1.35,
+            "inputContrast": 1.15
+        ])
+
+        return final
+    }
+
+    // Snake Vision – Infrared heat-map simulation
+    // Rainbow thermal palette: blue → cyan → green → yellow → orange → red
+    func applySnakeVisionFilter(to ciImage: CIImage, context: CIContext) -> CIImage? {
+        let cubeSize = 64
+        let cubeData = createThermalCubeData(size: cubeSize)
+
+        // Step 1: Moderate blur to simulate thermal sensor diffusion
+        let blurred = ciImage.applyingFilter("CIGaussianBlur", parameters: [
+            "inputRadius": 8.0
+        ])
+
+        // Step 2: Adjust contrast to spread luminance values
+        let adjusted = blurred.applyingFilter("CIColorControls", parameters: [
+            "inputContrast": 1.2,
+            "inputBrightness": 0.0,
+            "inputSaturation": 0.0  // Desaturate to prepare for thermal mapping
+        ])
+
+        // Step 3: Apply thermal rainbow gradient using CIColorCube LUT
+        let thermalColored = adjusted.applyingFilter("CIColorCube", parameters: [
+            "inputCubeDimension": cubeSize,
+            "inputCubeData": cubeData
+        ])
+
+        // Step 4: Boost saturation of the thermal colors for vivid effect
+        let vibrant = thermalColored.applyingFilter("CIColorControls", parameters: [
+            "inputSaturation": 1.4,
+            "inputContrast": 1.05
+        ])
+
+        return vibrant
+    }
+
+    // Create thermal rainbow lookup table for CIColorCube
+    // Maps luminance (0-1) to rainbow: blue → cyan → green → yellow → orange → red
+    func createThermalCubeData(size: Int) -> Data {
+        var cubeData = [Float]()
+        cubeData.reserveCapacity(size * size * size * 4)
+
+        for b in 0..<size {
+            for g in 0..<size {
+                for r in 0..<size {
+                    // Calculate luminance from input RGB
+                    let rf = Float(r) / Float(size - 1)
+                    let gf = Float(g) / Float(size - 1)
+                    let bf = Float(b) / Float(size - 1)
+
+                    // Luminance calculation (Rec. 709)
+                    let luminance = 0.2126 * rf + 0.7152 * gf + 0.0722 * bf
+
+                    // Map luminance to thermal rainbow color
+                    let (outR, outG, outB) = thermalGradientColor(luminance)
+
+                    cubeData.append(outR)
+                    cubeData.append(outG)
+                    cubeData.append(outB)
+                    cubeData.append(1.0) // Alpha
+                }
+            }
+        }
+
+        return Data(bytes: cubeData, count: cubeData.count * MemoryLayout<Float>.size)
+    }
+
+    // Map a luminance value (0-1) to thermal rainbow color
+    // Gradient: blue → cyan → green → yellow → orange → red
+    func thermalGradientColor(_ t: Float) -> (Float, Float, Float) {
+        // Define gradient stops (luminance -> RGB)
+        // 0.00: Deep blue (cold)
+        // 0.15: Blue
+        // 0.30: Cyan
+        // 0.45: Green
+        // 0.60: Yellow
+        // 0.75: Orange
+        // 1.00: Red (hot)
+
+        let r: Float
+        let g: Float
+        let b: Float
+
+        if t < 0.15 {
+            // Deep blue to blue
+            let s = t / 0.15
+            r = 0.0
+            g = 0.0
+            b = 0.3 + 0.7 * s  // 0.3 -> 1.0
+        } else if t < 0.30 {
+            // Blue to cyan
+            let s = (t - 0.15) / 0.15
+            r = 0.0
+            g = s * 0.9  // 0 -> 0.9
+            b = 1.0
+        } else if t < 0.45 {
+            // Cyan to green
+            let s = (t - 0.30) / 0.15
+            r = 0.0
+            g = 0.9 + s * 0.1  // 0.9 -> 1.0
+            b = 1.0 - s  // 1.0 -> 0.0
+        } else if t < 0.60 {
+            // Green to yellow
+            let s = (t - 0.45) / 0.15
+            r = s  // 0 -> 1.0
+            g = 1.0
+            b = 0.0
+        } else if t < 0.75 {
+            // Yellow to orange
+            let s = (t - 0.60) / 0.15
+            r = 1.0
+            g = 1.0 - s * 0.4  // 1.0 -> 0.6
+            b = 0.0
+        } else {
+            // Orange to red
+            let s = (t - 0.75) / 0.25
+            r = 1.0
+            g = 0.6 - s * 0.6  // 0.6 -> 0.0
+            b = 0.0
+        }
+
+        return (r, g, b)
+    }
+
+    // Bird Vision – Enhanced visual acuity simulation
+    // High local contrast, micro-detail separation, no color tint, no edge halos
+    func applyBirdVisionFilter(to ciImage: CIImage, context: CIContext) -> CIImage? {
+        // Step 1: Boost overall contrast (+8%)
+        let contrastBoosted = ciImage.applyingFilter("CIColorControls", parameters: [
+            "inputContrast": 1.08,
+            "inputSaturation": 1.0  // Keep saturation neutral
+        ])
+
+        // Step 2: Micro-detail unsharp mask (small radius avoids halos)
+        let microDetail = contrastBoosted.applyingFilter("CIUnsharpMask", parameters: [
+            "inputRadius": 0.8,
+            "inputIntensity": 0.9
+        ])
+
+        // Step 3: Luminance sharpening for edge acuity
+        let sharpenFilter = CIFilter.sharpenLuminance()
+        sharpenFilter.inputImage = microDetail
+        sharpenFilter.sharpness = 0.6
+        guard let sharpened = sharpenFilter.outputImage else { return microDetail }
+
+        // Step 4: High-frequency texture enhancement (very small radius)
+        let textureEnhanced = sharpened.applyingFilter("CIUnsharpMask", parameters: [
+            "inputRadius": 0.4,
+            "inputIntensity": 0.7
+        ])
+
+        // Step 5: Local contrast via highlight/shadow adjustment
+        let finalEnhanced = textureEnhanced.applyingFilter("CIHighlightShadowAdjust", parameters: [
+            "inputHighlightAmount": 0.95,  // Slight highlight reduction
+            "inputShadowAmount": 0.3       // Open up shadows for detail
+        ])
+
+        return finalEnhanced
     }
 }
 
